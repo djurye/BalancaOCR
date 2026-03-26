@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Backgrounds -->
+    <color name="bgMain">#0D1117</color>
+    <color name="bgCamera">#161B22</color>
+    <color name="bgPanel">#1C2128</color>
+
+    <!-- Text -->
+    <color name="textPrimary">#E6EDF3</color>
+    <color name="textSecondary">#7D8590</color>
+
+    <!-- Accent / Brand -->
+    <color name="colorAccent">#238636</color>
+    <color name="colorAccentLight">#2EA043</color>
+
+    <!-- Status -->
+    <color name="colorReading">#58A6FF</color>
+    <color name="colorStable">#3FB950</color>
+    <color name="colorUnstable">#F78166</color>
+
+    <!-- Buttons -->
+    <color name="colorPause">#E3B341</color>
+    <color name="colorResume">#238636</color>
+    <color name="colorUndo">#F78166</color>
+
+    <!-- Material primary (required) -->
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+</resources>

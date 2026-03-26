@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/bgMain">
+
+    <TextView
+        android:id="@+id/tvStats"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Carregando..."
+        android:textColor="@color/textPrimary"
+        android:fontFamily="monospace"
+        android:textSize="13sp"
+        android:background="@color/bgPanel"
+        android:padding="16dp"/>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvHistory"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:padding="8dp"/>
+
+    <Button
+        android:id="@+id/btnExportHistory"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:text="📊 Exportar Planilha (.xlsx)"
+        android:textColor="@android:color/white"
+        android:backgroundTint="@color/colorAccent"
+        android:layout_margin="12dp"
+        style="@style/Widget.MaterialComponents.Button"/>
+
+</LinearLayout>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Balança OCR</string>
+    <string name="session_hint">Nome da sessão (ex: Lote A)</string>
+    <string name="btn_new_session">Nova Sessão</string>
+    <string name="btn_open_camera">Abrir Câmera</string>
+    <string name="btn_export">Exportar Planilha</string>
+    <string name="status_waiting">Aguardando leitura…</string>
+    <string name="status_stable">✅ Valor estabilizado</string>
+    <string name="status_paused">⏸ Captura pausada</string>
+    <string name="permission_camera">Permissão de câmera necessária</string>
+</resources>
