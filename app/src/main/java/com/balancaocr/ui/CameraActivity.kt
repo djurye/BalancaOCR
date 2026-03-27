@@ -50,7 +50,7 @@ class CameraActivity : AppCompatActivity() {
     private lateinit var measureAdapter: MeasurementAdapter
 
     private val analyzer = WeightAnalyzer(
-        stabilityCount = 6,
+        stabilityCount = 4,
         stabilityThreshold = 0.02,
         minValidWeight = 0.01,
         minIntervalMs = 2500L

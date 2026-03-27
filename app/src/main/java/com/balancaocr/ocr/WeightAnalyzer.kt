@@ -4,37 +4,25 @@ import android.util.Log
 import java.util.LinkedList
 import kotlin.math.abs
 
-/**
- * Analisa o texto extraído pelo ML Kit e decide quando o valor da
- * balança se estabilizou para registrar automaticamente.
- *
- * Fluxo:
- *  1. parseWeight()   — extrai o número (e unidade) de um texto bruto
- *  2. onNewReading()  — alimenta o buffer de histórico e detecta estabilidade
- */
 class WeightAnalyzer(
-    /** Quantas leituras consecutivas iguais para considerar estável */
-    private val stabilityCount: Int = 5,
-    /** Variação máxima permitida entre leituras (em unidade da balança) */
-    private val stabilityThreshold: Double = 0.05,
-    /** Valor mínimo absoluto para ser considerado válido (evita registrar "0.00") */
+    /** Reduzido para 3 para leitura mais ágil */
+    private val stabilityCount: Int = 3,
+    /** Margem de erro levemente maior para compensar trepidação */
+    private val stabilityThreshold: Double = 0.08,
     private val minValidWeight: Double = 0.01,
-    /** Tempo mínimo entre dois registros consecutivos (ms) */
-    private val minIntervalMs: Long = 2000L
+    private val minIntervalMs: Long = 2500L
 ) {
 
     companion object {
         private const val TAG = "WeightAnalyzer"
 
-        // Regex: captura números decimais seguidos opcionalmente de unidade
-        // Exemplos válidos: "12.34 g", "0,456 kg", "1234", "1.234,56 g"
+        // Regex flexível: aceita letras que parecem números (B, O, S, Z, D)
         private val WEIGHT_REGEX = Regex(
-            """(\d{1,6}[.,]?\d{0,4})\s*(g|kg|mg|lb|oz)?""",
+            """([0-9BOSZDS]{1,6}[.,]?[0-9BOSZDS]{0,4})\s*(g|kg|mg|lb|oz)?""",
             RegexOption.IGNORE_CASE
         )
     }
 
-    // ── Estado interno ────────────────────────────────────────────────────────
     private val history = LinkedList<Double>()
     private var lastSavedValue: Double = -9999.0
     private var lastSaveTime: Long = 0L
@@ -46,21 +34,25 @@ class WeightAnalyzer(
         val parsed: ParsedWeight?,
         val isStable: Boolean,
         val shouldSave: Boolean,
-        val stabilityProgress: Float   // 0..1 para barra de progresso
+        val stabilityProgress: Float
     )
 
-    // ── Parsear texto bruto vindo do OCR ──────────────────────────────────────
     fun parseWeight(rawText: String): ParsedWeight? {
         if (rawText.isBlank()) return null
-
-        // Tenta todas as ocorrências e pega o maior valor (telas de balança
-        // geralmente mostram o valor principal bem grande e pode haver outros números)
         val candidates = mutableListOf<ParsedWeight>()
 
         WEIGHT_REGEX.findAll(rawText).forEach { match ->
+            // Limpeza: Converte letras de erro em números reais
             val numStr = match.groupValues[1]
-                .replace(',', '.')   // normaliza vírgula decimal
+                .uppercase()
+                .replace('B', '8')
+                .replace('O', '0')
+                .replace('S', '5')
+                .replace('Z', '2')
+                .replace('D', '0')
+                .replace(',', '.')
                 .trimEnd('.')
+
             val unit = match.groupValues[2].lowercase().ifBlank { "g" }
             val value = numStr.toDoubleOrNull() ?: return@forEach
             if (value > 0) candidates.add(ParsedWeight(value, unit))
@@ -68,19 +60,19 @@ class WeightAnalyzer(
 
         if (candidates.isEmpty()) return null
 
-        // Prefere o candidato com unidade explícita, depois o maior
+        // Prioriza a leitura que tenha unidade ou o maior valor encontrado
         val best = candidates.maxWithOrNull(
-            compareBy({ it.unit != "g" && it.unit.isNotBlank() }, { it.value })
+            compareBy({ it.unit != "g" }, { it.value })
         ) ?: return null
 
         currentUnit = best.unit
         return best
     }
 
-    // ── Alimentar nova leitura e avaliar estabilidade ─────────────────────────
     fun onNewReading(parsed: ParsedWeight?): AnalysisResult {
         if (parsed == null || parsed.value < minValidWeight) {
-            history.clear()
+            // Não limpamos o histórico imediatamente para evitar "pulos" na barra
+            if (history.isNotEmpty()) history.removeFirst()
             return AnalysisResult(null, false, false, 0f)
         }
 
@@ -93,14 +85,12 @@ class WeightAnalyzer(
             return AnalysisResult(parsed, false, false, progress)
         }
 
-        // Verificar se todos os valores estão dentro do limiar
         val min = history.min()
         val max = history.max()
-        val spread = max - min
-        val isStable = spread <= stabilityThreshold
+        val isStable = (max - min) <= stabilityThreshold
 
         if (!isStable) {
-            return AnalysisResult(parsed, false, false, 0.3f)
+            return AnalysisResult(parsed, false, false, 0.5f)
         }
 
         val avg = history.average()
@@ -108,17 +98,17 @@ class WeightAnalyzer(
         val timeSinceLast = now - lastSaveTime
         val valueDiff = abs(avg - lastSavedValue)
 
-        // Só salva se passou tempo suficiente E o valor mudou (nova partícula)
-        val shouldSave = timeSinceLast >= minIntervalMs && valueDiff > stabilityThreshold
+        // Critério de salvamento: Tempo + Mudança significativa de peso
+        val shouldSave = timeSinceLast >= minIntervalMs && valueDiff > (stabilityThreshold * 2)
 
         if (shouldSave) {
             lastSavedValue = avg
             lastSaveTime = now
-            history.clear()  // reseta para esperar próxima partícula
-            Log.d(TAG, "✅ Valor estável salvo: $avg ${parsed.unit}")
+            history.clear()
+            Log.d(TAG, "✅ Estabilizado e Salvo: $avg $currentUnit")
         }
 
-        return AnalysisResult(parsed, true, shouldSave, if (isStable) 1f else 0.7f)
+        return AnalysisResult(parsed, true, shouldSave, 1f)
     }
 
     fun reset() {
