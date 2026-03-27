@@ -15,6 +15,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.balancaocr.R
 import com.balancaocr.camera.ScaleImageAnalyzer
+import com.balancaocr.data.BalancaRepository
 import com.balancaocr.data.Measurement
 import com.balancaocr.ocr.WeightAnalyzer
 import com.balancaocr.utils.ExcelExporter
@@ -25,6 +26,7 @@ import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
+@androidx.camera.core.ExperimentalGetImage
 class CameraActivity : AppCompatActivity() {
 
     companion object {
@@ -76,27 +78,25 @@ class CameraActivity : AppCompatActivity() {
     }
 
     private fun bindViews() {
-        previewView = findViewById(R.id.previewView)
-        tvReading = findViewById(R.id.tvReading)
-        tvStatus = findViewById(R.id.tvStatus)
-        tvCount = findViewById(R.id.tvCount)
-        pbStability = findViewById(R.id.pbStability)
-        btnPause = findViewById(R.id.btnPause)
-        btnUndo = findViewById(R.id.btnUndo)
-        btnExport = findViewById(R.id.btnExport)
-        overlayView = findViewById(R.id.overlayCapture)
+        previewView   = findViewById(R.id.previewView)
+        tvReading     = findViewById(R.id.tvReading)
+        tvStatus      = findViewById(R.id.tvStatus)
+        tvCount       = findViewById(R.id.tvCount)
+        pbStability   = findViewById(R.id.pbStability)
+        btnPause      = findViewById(R.id.btnPause)
+        btnUndo       = findViewById(R.id.btnUndo)
+        btnExport     = findViewById(R.id.btnExport)
+        overlayView   = findViewById(R.id.overlayCapture)
         rvMeasurements = findViewById(R.id.rvMeasurements)
 
-        btnPause.setOnClickListener { vm.toggleCapture() }
-        btnUndo.setOnClickListener { vm.deleteLastMeasurement() }
+        btnPause.setOnClickListener  { vm.toggleCapture() }
+        btnUndo.setOnClickListener   { vm.deleteLastMeasurement() }
         btnExport.setOnClickListener { exportData() }
     }
 
     private fun setupRecyclerView() {
         measureAdapter = MeasurementAdapter(mutableListOf())
-        rvMeasurements.layoutManager = LinearLayoutManager(this).apply {
-            stackFromEnd = true
-        }
+        rvMeasurements.layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
         rvMeasurements.adapter = measureAdapter
     }
 
@@ -111,11 +111,10 @@ class CameraActivity : AppCompatActivity() {
 
         vm.lastSaved.observe(this) { m ->
             m ?: return@observe
-            // Flash de confirmação
+            overlayView.alpha = 1f
             overlayView.visibility = View.VISIBLE
             overlayView.animate().alpha(0f).setDuration(600).withEndAction {
                 overlayView.visibility = View.GONE
-                overlayView.alpha = 1f
             }.start()
         }
 
@@ -127,7 +126,6 @@ class CameraActivity : AppCompatActivity() {
         }
     }
 
-    @androidx.camera.core.ExperimentalGetImage
     private fun startCamera() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
         cameraProviderFuture.addListener({
@@ -141,8 +139,8 @@ class CameraActivity : AppCompatActivity() {
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
                 .also {
-                    it.setAnalyzer(cameraExecutor, ScaleImageAnalyzer(analyzer) { result, raw ->
-                        runOnUiThread { handleAnalysisResult(result, raw) }
+                    it.setAnalyzer(cameraExecutor, ScaleImageAnalyzer(analyzer) { result, _ ->
+                        runOnUiThread { handleAnalysisResult(result) }
                     })
                 }
 
@@ -156,21 +154,19 @@ class CameraActivity : AppCompatActivity() {
                 )
             } catch (e: Exception) {
                 Log.e(TAG, "Falha ao iniciar câmera", e)
+                Toast.makeText(this, "Erro ao iniciar câmera: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }, ContextCompat.getMainExecutor(this))
     }
 
-    private fun handleAnalysisResult(result: WeightAnalyzer.AnalysisResult, rawText: String) {
-        // Atualiza barra de estabilidade
+    private fun handleAnalysisResult(result: WeightAnalyzer.AnalysisResult) {
         pbStability.progress = (result.stabilityProgress * 100).toInt()
 
         if (result.parsed != null) {
             tvReading.text = "${"%.3f".format(result.parsed.value)} ${result.parsed.unit}"
             tvReading.setTextColor(
-                ContextCompat.getColor(
-                    this,
-                    if (result.isStable) R.color.colorStable else R.color.colorReading
-                )
+                ContextCompat.getColor(this,
+                    if (result.isStable) R.color.colorStable else R.color.colorReading)
             )
         } else {
             tvReading.text = "---"
@@ -184,30 +180,20 @@ class CameraActivity : AppCompatActivity() {
 
     private fun exportData() {
         lifecycleScope.launch {
-            val sessionId = vm.sessionId
             val measurements = vm.measurements.value ?: emptyList()
-
             if (measurements.isEmpty()) {
                 Snackbar.make(previewView, "Nenhuma leitura para exportar", Snackbar.LENGTH_SHORT).show()
                 return@launch
             }
-
-            // Busca sessão
-            val sessions = com.balancaocr.data.BalancaRepository(this@CameraActivity).getAllSessions()
-            val session = sessions.firstOrNull { it.id == sessionId } ?: return@launch
-
+            val sessions = BalancaRepository(this@CameraActivity).getAllSessions()
+            val session = sessions.firstOrNull { it.id == vm.sessionId } ?: return@launch
             val uri = ExcelExporter.export(this@CameraActivity, session, measurements)
-            if (uri != null) {
-                ExcelExporter.shareFile(this@CameraActivity, uri)
-            } else {
-                Snackbar.make(previewView, "Erro ao gerar planilha", Snackbar.LENGTH_SHORT).show()
-            }
+            if (uri != null) ExcelExporter.shareFile(this@CameraActivity, uri)
+            else Snackbar.make(previewView, "Erro ao gerar planilha", Snackbar.LENGTH_SHORT).show()
         }
     }
 
-    override fun onSupportNavigateUp(): Boolean {
-        finish(); return true
-    }
+    override fun onSupportNavigateUp(): Boolean { finish(); return true }
 
     override fun onDestroy() {
         super.onDestroy()
@@ -215,18 +201,17 @@ class CameraActivity : AppCompatActivity() {
     }
 }
 
-// ── Adapter da lista lateral ──────────────────────────────────────────────────
+// ── Adapter da lista de leituras ──────────────────────────────────────────────
 class MeasurementAdapter(private val items: MutableList<Measurement>) :
     RecyclerView.Adapter<MeasurementAdapter.VH>() {
 
-    inner class VH(view: android.view.View) : RecyclerView.ViewHolder(view) {
+    inner class VH(view: View) : RecyclerView.ViewHolder(view) {
         val tvIndex: TextView = view.findViewById(R.id.tvIndex)
         val tvValue: TextView = view.findViewById(R.id.tvValue)
     }
 
-    override fun onCreateViewHolder(parent: android.view.ViewGroup, vt: Int) =
-        VH(android.view.LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_measurement, parent, false))
+    override fun onCreateViewHolder(parent: ViewGroup, vt: Int) =
+        VH(LayoutInflater.from(parent.context).inflate(R.layout.item_measurement, parent, false))
 
     override fun getItemCount() = items.size
 

@@ -4,29 +4,35 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    
+
+    <!-- Fundo -->
     <path
         android:fillColor="#1C2128"
         android:pathData="M0,0h108v108h-108z"/>
-    
+
+    <!-- Prato da balança -->
     <path
         android:fillColor="#2EA043"
         android:pathData="M20,60 Q54,50 88,60 L84,65 Q54,56 24,65 Z"/>
-    
+
+    <!-- Haste vertical -->
     <path
         android:fillColor="#58A6FF"
         android:pathData="M52,40 H56 V60 H52 Z"/>
-        
+
+    <!-- Base horizontal -->
     <path
         android:fillColor="#58A6FF"
         android:pathData="M36,70 H72 V75 H36 Z"/>
-        
+
+    <!-- Display -->
     <path
         android:fillColor="#161B22"
         android:pathData="M38,25 H70 V42 H38 Z"/>
-        
+
+    <!-- Número no display -->
     <path
         android:fillColor="#3FB950"
         android:pathData="M42,32 L50,32 L50,35 L42,35 Z"/>
-        
+
 </vector>

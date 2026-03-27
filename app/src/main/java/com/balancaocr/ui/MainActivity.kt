@@ -4,6 +4,9 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
 import android.widget.*
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -15,6 +18,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.balancaocr.R
 import com.balancaocr.data.BalancaRepository
 import com.balancaocr.data.Session
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -24,6 +28,9 @@ class MainActivity : AppCompatActivity() {
     private val repo by lazy { BalancaRepository(this) }
     private val sessions = mutableListOf<Session>()
     private lateinit var adapter: SessionAdapter
+    private lateinit var rvSessions: RecyclerView
+    private lateinit var tvEmpty: TextView
+    private lateinit var fabNew: FloatingActionButton
 
     companion object {
         const val REQ_CAMERA = 100
@@ -35,19 +42,21 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        adapter = SessionAdapter(sessions,
+        rvSessions = findViewById(R.id.rvSessions)
+        tvEmpty = findViewById(R.id.tvEmpty)
+        fabNew = findViewById(R.id.fabNewSession)
+
+        adapter = SessionAdapter(
+            sessions,
             onOpen = { openCamera(it) },
             onHistory = { openHistory(it) },
             onDelete = { confirmDelete(it) }
         )
-        findViewById<RecyclerView>(R.id.rvSessions).apply {
-            layoutManager = LinearLayoutManager(this@MainActivity)
-            adapter = this@MainActivity.adapter
-        }
 
-        findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(
-            R.id.fabNewSession
-        ).setOnClickListener { showNewSessionDialog() }
+        rvSessions.layoutManager = LinearLayoutManager(this)
+        rvSessions.adapter = adapter
+
+        fabNew.setOnClickListener { showNewSessionDialog() }
 
         checkPermissions()
         loadSessions()
@@ -60,21 +69,24 @@ class MainActivity : AppCompatActivity() {
 
     private fun loadSessions() {
         lifecycleScope.launch {
-            sessions.clear()
-            sessions.addAll(repo.getAllSessions())
-            adapter.notifyDataSetChanged()
-            findViewById<TextView>(R.id.tvEmpty).visibility =
-                if (sessions.isEmpty()) android.view.View.VISIBLE else android.view.View.GONE
+            try {
+                sessions.clear()
+                sessions.addAll(repo.getAllSessions())
+                adapter.notifyDataSetChanged()
+                tvEmpty.visibility = if (sessions.isEmpty()) View.VISIBLE else View.GONE
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, "Erro ao carregar sessões: ${e.message}", Toast.LENGTH_LONG).show()
+            }
         }
     }
 
     private fun showNewSessionDialog() {
         val input = EditText(this).apply {
             hint = "Nome da sessão (ex: Lote A)"
-            setPadding(40, 20, 40, 20)
+            setPadding(60, 30, 60, 30)
+            val fmt = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("pt", "BR"))
+            setText("Sessão ${fmt.format(Date())}")
         }
-        val fmt = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("pt", "BR"))
-        input.setText("Sessão ${fmt.format(Date())}")
 
         AlertDialog.Builder(this)
             .setTitle("Nova Sessão de Pesagem")
@@ -82,8 +94,12 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton("Criar e Abrir Câmera") { _, _ ->
                 val name = input.text.toString().trim().ifBlank { "Sessão" }
                 lifecycleScope.launch {
-                    val id = repo.createSession(name)
-                    openCamera(Session(id = id, name = name))
+                    try {
+                        val id = repo.createSession(name)
+                        openCamera(Session(id = id, name = name))
+                    } catch (e: Exception) {
+                        Toast.makeText(this@MainActivity, "Erro ao criar sessão", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
             .setNegativeButton("Cancelar", null)
@@ -93,19 +109,22 @@ class MainActivity : AppCompatActivity() {
     private fun openCamera(session: Session) {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
             != PackageManager.PERMISSION_GRANTED) {
-            checkPermissions(); return
+            checkPermissions()
+            return
         }
-        startActivity(Intent(this, CameraActivity::class.java).apply {
+        val intent = Intent(this, CameraActivity::class.java).apply {
             putExtra(EXTRA_SESSION_ID, session.id)
             putExtra(EXTRA_SESSION_NAME, session.name)
-        })
+        }
+        startActivity(intent)
     }
 
     private fun openHistory(session: Session) {
-        startActivity(Intent(this, HistoryActivity::class.java).apply {
+        val intent = Intent(this, HistoryActivity::class.java).apply {
             putExtra(EXTRA_SESSION_ID, session.id)
             putExtra(EXTRA_SESSION_NAME, session.name)
-        })
+        }
+        startActivity(intent)
     }
 
     private fun confirmDelete(session: Session) {
@@ -113,24 +132,42 @@ class MainActivity : AppCompatActivity() {
             .setTitle("Excluir sessão?")
             .setMessage("\"${session.name}\" e todas as ${session.count} leituras serão removidas.")
             .setPositiveButton("Excluir") { _, _ ->
-                lifecycleScope.launch { repo.deleteSession(session); loadSessions() }
+                lifecycleScope.launch {
+                    try {
+                        repo.deleteSession(session)
+                        loadSessions()
+                    } catch (e: Exception) {
+                        Toast.makeText(this@MainActivity, "Erro ao excluir", Toast.LENGTH_SHORT).show()
+                    }
+                }
             }
             .setNegativeButton("Cancelar", null)
             .show()
     }
 
     private fun checkPermissions() {
-        val perms = mutableListOf(Manifest.permission.CAMERA)
-        val missing = perms.filter {
-            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        val missing = mutableListOf<String>()
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+            != PackageManager.PERMISSION_GRANTED) {
+            missing.add(Manifest.permission.CAMERA)
         }
         if (missing.isNotEmpty()) {
             ActivityCompat.requestPermissions(this, missing.toTypedArray(), REQ_CAMERA)
         }
     }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQ_CAMERA &&
+            grantResults.any { it != PackageManager.PERMISSION_GRANTED }) {
+            Toast.makeText(this, "Permissão de câmera necessária para usar o app", Toast.LENGTH_LONG).show()
+        }
+    }
 }
 
-// ── Adapter simples para a lista de sessões ───────────────────────────────────
+// ── Adapter ───────────────────────────────────────────────────────────────────
 class SessionAdapter(
     private val items: List<Session>,
     private val onOpen: (Session) -> Unit,
@@ -138,7 +175,9 @@ class SessionAdapter(
     private val onDelete: (Session) -> Unit
 ) : RecyclerView.Adapter<SessionAdapter.VH>() {
 
-    inner class VH(view: android.view.View) : RecyclerView.ViewHolder(view) {
+    private val fmt = SimpleDateFormat("dd/MM/yy HH:mm", Locale("pt", "BR"))
+
+    inner class VH(view: View) : RecyclerView.ViewHolder(view) {
         val tvName: TextView = view.findViewById(R.id.tvSessionName)
         val tvCount: TextView = view.findViewById(R.id.tvSessionCount)
         val tvDate: TextView = view.findViewById(R.id.tvSessionDate)
@@ -147,11 +186,10 @@ class SessionAdapter(
         val btnDelete: ImageButton = view.findViewById(R.id.btnDelete)
     }
 
-    private val fmt = SimpleDateFormat("dd/MM/yy HH:mm", Locale("pt", "BR"))
-
-    override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): VH =
-        VH(android.view.LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_session, parent, false))
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
+        val v = LayoutInflater.from(parent.context).inflate(R.layout.item_session, parent, false)
+        return VH(v)
+    }
 
     override fun getItemCount() = items.size
 
