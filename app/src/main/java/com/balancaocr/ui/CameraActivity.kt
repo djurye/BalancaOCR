@@ -48,11 +48,15 @@ class CameraActivity : AppCompatActivity() {
     private lateinit var overlayView: View
     private lateinit var rvMeasurements: RecyclerView
     private lateinit var measureAdapter: MeasurementAdapter
+    
+    // --- Novos campos para UI de Estabilidade ---
+    private lateinit var sbStability: SeekBar
+    private lateinit var tvStabilityLabel: TextView
 
     private val analyzer = WeightAnalyzer(
-        stabilityCount = 4,
-        stabilityThreshold = 0.02,
-        minValidWeight = 0.01,
+        stabilityCount = 3, // Padrão inicial
+        stabilityThreshold = 0.08,
+        minValidWeight = 0.02,
         minIntervalMs = 2500L
     )
 
@@ -72,6 +76,7 @@ class CameraActivity : AppCompatActivity() {
         vm.loadSession(sessionId)
 
         bindViews()
+        setupStabilityControl() // Configura a lógica do SeekBar
         setupRecyclerView()
         observeViewModel()
 
@@ -80,20 +85,44 @@ class CameraActivity : AppCompatActivity() {
     }
 
     private fun bindViews() {
-        previewView   = findViewById(R.id.previewView)
-        tvReading     = findViewById(R.id.tvReading)
-        tvStatus      = findViewById(R.id.tvStatus)
-        tvCount       = findViewById(R.id.tvCount)
-        pbStability   = findViewById(R.id.pbStability)
-        btnPause      = findViewById(R.id.btnPause)
-        btnUndo       = findViewById(R.id.btnUndo)
-        btnExport     = findViewById(R.id.btnExport)
-        overlayView   = findViewById(R.id.overlayCapture)
+        previewView    = findViewById(R.id.previewView)
+        tvReading      = findViewById(R.id.tvReading)
+        tvStatus       = findViewById(R.id.tvStatus)
+        tvCount        = findViewById(R.id.tvCount)
+        pbStability    = findViewById(R.id.pbStability)
+        btnPause       = findViewById(R.id.btnPause)
+        btnUndo        = findViewById(R.id.btnUndo)
+        btnExport      = findViewById(R.id.btnExport)
+        overlayView    = findViewById(R.id.overlayCapture)
         rvMeasurements = findViewById(R.id.rvMeasurements)
+        
+        // Vincula os novos componentes
+        sbStability    = findViewById(R.id.sbStability)
+        tvStabilityLabel = findViewById(R.id.tvStabilityLabel)
 
         btnPause.setOnClickListener  { vm.toggleCapture() }
         btnUndo.setOnClickListener   { vm.deleteLastMeasurement() }
         btnExport.setOnClickListener { exportData() }
+    }
+
+    private fun setupStabilityControl() {
+        // Define o progresso inicial baseado no analyzer
+        sbStability.progress = analyzer.stabilityCount
+        tvStabilityLabel.text = "Estabilidade: ${analyzer.stabilityCount}"
+
+        sbStability.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                // Impede que o valor seja zero (mínimo de 1 repetição)
+                val count = if (progress < 1) 1 else progress
+                
+                // ATUALIZA O ANALYZER DINAMICAMENTE
+                analyzer.stabilityCount = count
+                tvStabilityLabel.text = "Estabilidade: $count"
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
     }
 
     private fun setupRecyclerView() {
@@ -203,7 +232,7 @@ class CameraActivity : AppCompatActivity() {
     }
 }
 
-// ── Adapter da lista de leituras ──────────────────────────────────────────────
+// ── Adapter permanece igual ──────────────────────────────────────────────
 class MeasurementAdapter(private val items: MutableList<Measurement>) :
     RecyclerView.Adapter<MeasurementAdapter.VH>() {
 

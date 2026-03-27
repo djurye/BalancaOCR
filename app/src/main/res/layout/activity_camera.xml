@@ -6,7 +6,6 @@
     android:layout_height="match_parent"
     android:background="@color/bgCamera">
 
-    <!-- Câmera ao vivo -->
     <androidx.camera.view.PreviewView
         android:id="@+id/previewView"
         android:layout_width="0dp"
@@ -16,7 +15,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
-    <!-- Guia de enquadramento -->
     <View
         android:id="@+id/frameGuide"
         android:layout_width="220dp"
@@ -27,7 +25,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
-    <!-- Flash de captura -->
     <View
         android:id="@+id/overlayCapture"
         android:layout_width="0dp"
@@ -39,7 +36,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
-    <!-- Label "Alinhe o display aqui" -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -54,7 +50,6 @@
         app:layout_constraintEnd_toEndOf="@id/frameGuide"
         app:layout_constraintVertical_bias="0.08"/>
 
-    <!-- Leitura atual em tempo real -->
     <TextView
         android:id="@+id/tvReading"
         android:layout_width="wrap_content"
@@ -71,7 +66,6 @@
         app:layout_constraintEnd_toEndOf="parent"
         android:layout_marginBottom="4dp"/>
 
-    <!-- Barra de estabilidade -->
     <ProgressBar
         android:id="@+id/pbStability"
         style="?android:attr/progressBarStyleHorizontal"
@@ -85,7 +79,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
-    <!-- Painel inferior -->
     <LinearLayout
         android:id="@+id/bottomPanel"
         android:layout_width="0dp"
@@ -97,7 +90,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- Status + contador -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -123,14 +115,40 @@
                 android:textSize="13sp"/>
         </LinearLayout>
 
-        <!-- Lista compacta das últimas leituras -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvMeasurements"
             android:layout_width="match_parent"
             android:layout_height="110dp"
             android:layout_marginBottom="8dp"/>
 
-        <!-- Botões de controle -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="12dp"
+            android:background="#15000000"
+            android:padding="4dp">
+
+            <TextView
+                android:id="@+id/tvStabilityLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Estabilidade: 3"
+                android:textColor="@color/textPrimary"
+                android:textSize="12sp"
+                android:layout_marginEnd="8dp"/>
+
+            <SeekBar
+                android:id="@+id/sbStability"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="10"
+                android:progress="3"
+                android:progressTint="@color/colorAccent"
+                android:thumbTint="@color/colorAccent" />
+        </LinearLayout>
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
