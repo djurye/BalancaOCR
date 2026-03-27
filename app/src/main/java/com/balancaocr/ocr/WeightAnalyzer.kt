@@ -6,7 +6,7 @@ import kotlin.math.abs
 
 class WeightAnalyzer(
     /** Reduzido para 3 para leitura mais ágil */
-    private val stabilityCount: Int = 3,
+    var stabilityCount: Int = 3,
     /** Margem de erro levemente maior para compensar trepidação */
     private val stabilityThreshold: Double = 0.08,
     private val minValidWeight: Double = 0.01,
